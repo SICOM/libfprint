@@ -210,31 +210,23 @@ API_EXPORTED int fp_enroll_finger_img_timeout(struct fp_dev *dev,
 
 	/* FIXME this isn't very clean */
 	edata = dev->enroll_stage_cb_data;
-    
-	if(enroll_timeout == NULL){
-		while (!edata->populated) {
-			r = fp_handle_events();
-			if (r < 0) {
-				g_free(edata);
-				goto err;
-			}
-		}
-	}else{			
-		time_t start_time;
-		start_time = time(NULL);
+    		
+	time_t start_time;
+	start_time = time(NULL);
 
-		while (!edata->populated) {
-			if(time(NULL) > start_time + enroll_timeout->tv_sec){
+	while (!edata->populated) {
+		if (enroll_timeout != NULL) {
+			if (time(NULL) > start_time + enroll_timeout->tv_sec) {
 				r = FP_ENROLL_TIMEOUT;
 				g_free(edata);
 				goto err;
-			}
-			r = fp_handle_events();
-			if (r < 0) {
-				g_free(edata);
-				goto err;
-			}
+			}	
 		}
+		r = fp_handle_events();
+		if (r < 0) {
+			g_free(edata);
+			goto err;
+		}	
 	}
 	edata->populated = FALSE;
 
@@ -486,26 +478,22 @@ API_EXPORTED int fp_identify_finger_img_timeout(struct fp_dev *dev,
 		fp_err("identify_start error %d", r);
 		goto err;
 	}
-	if(identify_timeout == NULL){
-	while (!idata->populated) {
-		r = fp_handle_events();
-		if (r < 0)
-			goto err_stop;
-		}		
-	}else{
-		time_t start_time;
-		start_time = time(NULL);
 
-		while (!idata->populated) {
-			if(time(NULL) > start_time + identify_timeout->tv_sec){
+	time_t start_time;
+	start_time = time(NULL);
+
+	while (!idata->populated) {
+		if (identify_timeout != NULL) {
+			if (time(NULL) > start_time + identify_timeout->tv_sec) {
 				r = FP_VERIFY_TIMEOUT;
 				goto err_stop;
 			}
-			r = fp_handle_events();
-			if (r < 0)
-				goto err_stop;
 		}
+		r = fp_handle_events();
+		if (r < 0)
+			goto err_stop;
 	}
+	
 	if (img)
 		*img = idata->img;
 	else
