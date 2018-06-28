@@ -18,6 +18,7 @@
  */
 
 #define FP_COMPONENT "poll"
+#define NANO_SLEEP_INTERRUPT -10
 
 #include <config.h>
 #include <errno.h>
@@ -232,7 +233,7 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 
 	fp_dbg("Here is the r return value from libusb_handle_events_timeout function: %d", r);
 	*timeout = select_timeout;
-	if (r < 0 && r != -10)
+	if (r < 0 && r != NANO_SLEEP_INTERRUPT)
 		return r;
 
 	return handle_timeouts();

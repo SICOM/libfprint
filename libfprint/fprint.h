@@ -154,9 +154,14 @@ enum fp_enroll_result {
 	 * problems; the user should remove their finger from the scanner before
 	 * retrying. */
 	FP_ENROLL_RETRY_REMOVE_FINGER,
+
+	FP_ENROLL_UNPLUGGED = -5,
 };
 
 int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
+	struct fp_img **img);
+
+int fp_enroll_finger_img_timeout(struct fp_dev *dev, struct fp_print_data **print_data,
 	struct fp_img **img, struct timeval *enroll_timeout);
 
 /** \ingroup dev
@@ -173,14 +178,7 @@ int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
 static inline int fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
-	struct timeval t;
-	t.tv_sec = 5;
-	t.tv_usec = 0;
-
-	struct timeval *t_ptr;
-	t_ptr = &t;
-
-	return fp_enroll_finger_img(dev, print_data, NULL, t_ptr);
+	return fp_enroll_finger_img(dev, print_data, NULL);
 }
 
 /** \ingroup dev
@@ -211,6 +209,8 @@ enum fp_verify_result {
 	/** The scan did not succeed due to quality or pressure problems; the user
 	 * should remove their finger from the scanner before retrying. */
 	FP_VERIFY_RETRY_REMOVE_FINGER = FP_ENROLL_RETRY_REMOVE_FINGER,
+
+	FP_VERIFY_UNPLUGGED = -5,
 };
 
 int fp_verify_finger_img(struct fp_dev *dev,
@@ -233,9 +233,13 @@ static inline int fp_verify_finger(struct fp_dev *dev,
 }
 
 int fp_dev_supports_identification(struct fp_dev *dev);
-int fp_identify_finger_img(struct fp_dev *dev,
+int fp_identify_finger_img_timeout(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
 	struct fp_img **img, struct timeval *identify_timeout);
+
+int fp_identify_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset,
+	struct fp_img **img);
 
 /** \ingroup dev
  * Performs a new scan and attempts to identify the scanned finger against a
@@ -255,13 +259,7 @@ int fp_identify_finger_img(struct fp_dev *dev,
 static inline int fp_identify_finger(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset)
 {
-	struct timeval t;
-	t.tv_sec = 5;
-	t.tv_usec = 0;
-
-	struct timeval *t_ptr;
-	t_ptr = &t;
-	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL, t_ptr);
+	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
 }
 
 /* Data handling */
