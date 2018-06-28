@@ -155,6 +155,8 @@ enum fp_enroll_result {
 	 * retrying. */
 	FP_ENROLL_RETRY_REMOVE_FINGER,
 
+	FP_ENROLL_TIMEOUT = 8,
+
 	FP_ENROLL_UNPLUGGED = -5,
 };
 
@@ -218,6 +220,8 @@ enum fp_verify_result {
 	/** The scan did not succeed due to quality or pressure problems; the user
 	 * should remove their finger from the scanner before retrying. */
 	FP_VERIFY_RETRY_REMOVE_FINGER = FP_ENROLL_RETRY_REMOVE_FINGER,
+
+	FP_VERIFY_TIMEOUT = 8,
 
 	FP_VERIFY_UNPLUGGED = -5,
 };

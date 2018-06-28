@@ -219,15 +219,13 @@ API_EXPORTED int fp_enroll_finger_img_timeout(struct fp_dev *dev,
 				goto err;
 			}
 		}
-	}
-
-	else{			
+	}else{			
 		time_t start_time;
 		start_time = time(NULL);
 
 		while (!edata->populated) {
 			if(time(NULL) > start_time + enroll_timeout->tv_sec){
-				r = 8;
+				r = FP_ENROLL_TIMEOUT;
 				g_free(edata);
 				goto err;
 			}
@@ -494,14 +492,13 @@ API_EXPORTED int fp_identify_finger_img_timeout(struct fp_dev *dev,
 		if (r < 0)
 			goto err_stop;
 		}		
-	}
-	else{
+	}else{
 		time_t start_time;
 		start_time = time(NULL);
 
 		while (!idata->populated) {
 			if(time(NULL) > start_time + identify_timeout->tv_sec){
-				r = 8;
+				r = FP_VERIFY_TIMEOUT;
 				goto err_stop;
 			}
 			r = fp_handle_events();
