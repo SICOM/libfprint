@@ -229,8 +229,10 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 	}
 
 	r = libusb_handle_events_timeout(fpi_usb_ctx, &select_timeout);
+
+	fp_dbg("Here is the r return value from libusb_handle_events_timeout function: %d", r);
 	*timeout = select_timeout;
-	if (r < 0)
+	if (r < 0 && r != -10)
 		return r;
 
 	return handle_timeouts();
@@ -246,7 +248,7 @@ API_EXPORTED int fp_handle_events_timeout(struct timeval *timeout)
 API_EXPORTED int fp_handle_events(void)
 {
 	struct timeval tv;
-	tv.tv_sec = 2;
+	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	return fp_handle_events_timeout(&tv);
 }

@@ -157,7 +157,7 @@ enum fp_enroll_result {
 };
 
 int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
-	struct fp_img **img);
+	struct fp_img **img, struct timeval *enroll_timeout);
 
 /** \ingroup dev
  * Performs an enroll stage. See \ref enrolling for an explanation of enroll
@@ -173,7 +173,14 @@ int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
 static inline int fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
-	return fp_enroll_finger_img(dev, print_data, NULL);
+	struct timeval t;
+	t.tv_sec = 5;
+	t.tv_usec = 0;
+
+	struct timeval *t_ptr;
+	t_ptr = &t;
+
+	return fp_enroll_finger_img(dev, print_data, NULL, t_ptr);
 }
 
 /** \ingroup dev
@@ -228,7 +235,7 @@ static inline int fp_verify_finger(struct fp_dev *dev,
 int fp_dev_supports_identification(struct fp_dev *dev);
 int fp_identify_finger_img(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
-	struct fp_img **img);
+	struct fp_img **img, struct timeval *identify_timeout);
 
 /** \ingroup dev
  * Performs a new scan and attempts to identify the scanned finger against a
@@ -248,7 +255,13 @@ int fp_identify_finger_img(struct fp_dev *dev,
 static inline int fp_identify_finger(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset)
 {
-	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
+	struct timeval t;
+	t.tv_sec = 5;
+	t.tv_usec = 0;
+
+	struct timeval *t_ptr;
+	t_ptr = &t;
+	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL, t_ptr);
 }
 
 /* Data handling */
