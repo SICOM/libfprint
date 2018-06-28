@@ -158,9 +158,6 @@ enum fp_enroll_result {
 	FP_ENROLL_UNPLUGGED = -5,
 };
 
-int fp_enroll_finger_img(struct fp_dev *dev, struct fp_print_data **print_data,
-	struct fp_img **img);
-
 int fp_enroll_finger_img_timeout(struct fp_dev *dev, struct fp_print_data **print_data,
 	struct fp_img **img, struct timeval *enroll_timeout);
 
@@ -178,7 +175,19 @@ int fp_enroll_finger_img_timeout(struct fp_dev *dev, struct fp_print_data **prin
 static inline int fp_enroll_finger(struct fp_dev *dev,
 	struct fp_print_data **print_data)
 {
-	return fp_enroll_finger_img(dev, print_data, NULL);
+	return fp_enroll_finger_img_timeout(dev, print_data, NULL, NULL);
+}
+
+static inline int fp_enroll_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_data, struct fp_img **img)
+{
+	return fp_enroll_finger_img_timeout(dev, print_data, img, NULL);
+}
+
+static inline int fp_enroll_finger_timeout(struct fp_dev *dev,
+	struct fp_print_data **print_data, struct fp_img **img, struct timeval *enroll_timeout)
+{
+	return fp_enroll_finger_img_timeout(dev, print_data, NULL, enroll_timeout);
 }
 
 /** \ingroup dev
@@ -233,13 +242,10 @@ static inline int fp_verify_finger(struct fp_dev *dev,
 }
 
 int fp_dev_supports_identification(struct fp_dev *dev);
+
 int fp_identify_finger_img_timeout(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
 	struct fp_img **img, struct timeval *identify_timeout);
-
-int fp_identify_finger_img(struct fp_dev *dev,
-	struct fp_print_data **print_gallery, size_t *match_offset,
-	struct fp_img **img);
 
 /** \ingroup dev
  * Performs a new scan and attempts to identify the scanned finger against a
@@ -259,7 +265,19 @@ int fp_identify_finger_img(struct fp_dev *dev,
 static inline int fp_identify_finger(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset)
 {
-	return fp_identify_finger_img(dev, print_gallery, match_offset, NULL);
+	return fp_identify_finger_img_timeout(dev, print_gallery, match_offset, NULL, NULL);
+}
+
+static inline int fp_identify_finger_img(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset, struct fp_img **img)
+{
+	return fp_identify_finger_img_timeout(dev, print_gallery, match_offset, img ,NULL);
+}
+
+static inline int fp_identify_finger_timeout(struct fp_dev *dev,
+	struct fp_print_data **print_gallery, size_t *match_offset, struct fp_img **img, struct timeval *identify_timeout)
+{
+	return fp_identify_finger_img_timeout(dev, print_gallery, match_offset, NULL, identify_timeout);
 }
 
 /* Data handling */

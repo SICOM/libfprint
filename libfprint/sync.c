@@ -210,23 +210,34 @@ API_EXPORTED int fp_enroll_finger_img_timeout(struct fp_dev *dev,
 
 	/* FIXME this isn't very clean */
 	edata = dev->enroll_stage_cb_data;
-
-	time_t start_time;
-	start_time = time(NULL);
-
-	while (!edata->populated) {
-		if(time(NULL) > start_time + enroll_timeout->tv_sec){
-			r = 8;
-			g_free(edata);
-			goto err;
-		}
-		r = fp_handle_events();
-		if (r < 0) {
-			g_free(edata);
-			goto err;
+    
+	if(enroll_timeout == NULL){
+		while (!edata->populated) {
+			r = fp_handle_events();
+			if (r < 0) {
+				g_free(edata);
+				goto err;
+			}
 		}
 	}
 
+	else{			
+		time_t start_time;
+		start_time = time(NULL);
+
+		while (!edata->populated) {
+			if(time(NULL) > start_time + enroll_timeout->tv_sec){
+				r = 8;
+				g_free(edata);
+				goto err;
+			}
+			r = fp_handle_events();
+			if (r < 0) {
+				g_free(edata);
+				goto err;
+			}
+		}
+	}
 	edata->populated = FALSE;
 
 	if (img)
@@ -293,114 +304,6 @@ err:
 unplugged:
 	return r;
 }
-
-API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
-	struct fp_print_data **print_data, struct fp_img **img)
-{
-	struct fp_driver *drv = dev->drv;
-	int stage = dev->__enroll_stage;
-	gboolean final = FALSE;
-	gboolean stopped = FALSE;
-	struct sync_enroll_data *edata = NULL;
-	int r;
-	fp_dbg("");
-
-	/* FIXME __enroll_stage is ugly, can we replace it by some function that
-	 * says whether we're enrolling or not, and then put __enroll_stage into
-	 * edata? */
-
-	if (stage == -1) {
-		edata = g_malloc0(sizeof(struct sync_enroll_data));
-		r = fp_async_enroll_start(dev, sync_enroll_cb, edata);
-		if (r < 0) {
-			g_free(edata);
-			return r;
-		}
-
-		dev->__enroll_stage = ++stage;
-	} else if (stage >= dev->nr_enroll_stages) {
-		fp_err("exceeding number of enroll stages for device claimed by "
-			"driver %s (%d stages)", drv->name, dev->nr_enroll_stages);
-		dev->__enroll_stage = -1;
-		r = -EINVAL;
-		final = TRUE;
-		goto out;
-	}
-	fp_dbg("%s will handle enroll stage %d/%d", drv->name, stage,
-		dev->nr_enroll_stages - 1);
-
-	/* FIXME this isn't very clean */
-	edata = dev->enroll_stage_cb_data;
-
-	while (!edata->populated) {
-		r = fp_handle_events();
-		if (r < 0) {
-			g_free(edata);
-			goto err;
-		}
-	}
-
-	edata->populated = FALSE;
-
-	if (img)
-		*img = edata->img;
-	else
-		fp_img_free(edata->img);
-
-	r = edata->result;
-	switch (r) {
-	case FP_ENROLL_PASS:
-		fp_dbg("enroll stage passed");
-		dev->__enroll_stage = stage + 1;
-		break;
-	case FP_ENROLL_COMPLETE:
-		fp_dbg("enroll complete");
-		dev->__enroll_stage = -1;
-		*print_data = edata->data;
-		final = TRUE;
-		break;
-	case FP_ENROLL_RETRY:
-		fp_dbg("enroll should retry");
-		break;
-	case FP_ENROLL_RETRY_TOO_SHORT:
-		fp_dbg("swipe was too short, enroll should retry");
-		break;
-	case FP_ENROLL_RETRY_CENTER_FINGER:
-		fp_dbg("finger was not centered, enroll should retry");
-		break;
-	case FP_ENROLL_RETRY_REMOVE_FINGER:
-		fp_dbg("scan failed, remove finger and retry");
-		break;
-	case FP_ENROLL_FAIL:
-		fp_err("enroll failed");
-		dev->__enroll_stage = -1;
-		final = TRUE;
-		break;
-	default:
-		fp_err("unrecognised return code %d", r);
-		dev->__enroll_stage = -1;
-		r = -EINVAL;
-		final = TRUE;
-		break;
-	}
-
-	if (!final)
-		return r;
-
-out:
-	if (final) {
-		fp_dbg("ending enrollment");
-		g_free(edata);
-	}
-
-err:
-	if (fp_async_enroll_stop(dev, enroll_stop_cb, &stopped) == 0)
-		while (!stopped)
-			if (fp_handle_events() < 0)
-				break;
-	return r;
-}
-
 
 struct sync_verify_data {
 	gboolean populated;
@@ -585,20 +488,27 @@ API_EXPORTED int fp_identify_finger_img_timeout(struct fp_dev *dev,
 		fp_err("identify_start error %d", r);
 		goto err;
 	}
-
-	time_t start_time;
-	start_time = time(NULL);
-
+	if(identify_timeout == NULL){
 	while (!idata->populated) {
-		if(time(NULL) > start_time + identify_timeout->tv_sec){
-			r = 8;
-			goto err_stop;
-		}
 		r = fp_handle_events();
 		if (r < 0)
 			goto err_stop;
+		}		
 	}
+	else{
+		time_t start_time;
+		start_time = time(NULL);
 
+		while (!idata->populated) {
+			if(time(NULL) > start_time + identify_timeout->tv_sec){
+				r = 8;
+				goto err_stop;
+			}
+			r = fp_handle_events();
+			if (r < 0)
+				goto err_stop;
+		}
+	}
 	if (img)
 		*img = idata->img;
 	else
@@ -647,71 +557,6 @@ unplugged:
 	g_free(idata);
 	return r;
 		
-}
-
-API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
-	struct fp_print_data **print_gallery, size_t *match_offset,
-	struct fp_img **img)
-{
-	gboolean stopped = FALSE;
-	struct sync_identify_data *idata
-		= g_malloc0(sizeof(struct sync_identify_data));
-	int r;
-
-	fp_dbg("to be handled by %s", dev->drv->name);
-
-	r = fp_async_identify_start(dev, print_gallery, sync_identify_cb, idata);
-	if (r < 0) {
-		fp_err("identify_start error %d", r);
-		goto err;
-	}
-
-	while (!idata->populated) {
-		r = fp_handle_events();
-		if (r < 0)
-			goto err_stop;
-	}
-
-	if (img)
-		*img = idata->img;
-	else
-		fp_img_free(idata->img);
-
-	r = idata->result;
-	switch (idata->result) {
-	case FP_VERIFY_NO_MATCH:
-		fp_dbg("result: no match");
-		break;
-	case FP_VERIFY_MATCH:
-		fp_dbg("result: match at offset %zd", idata->match_offset);
-		*match_offset = idata->match_offset;
-		break;
-	case FP_VERIFY_RETRY:
-		fp_dbg("verify should retry");
-		break;
-	case FP_VERIFY_RETRY_TOO_SHORT:
-		fp_dbg("swipe was too short, verify should retry");
-		break;
-	case FP_VERIFY_RETRY_CENTER_FINGER:
-		fp_dbg("finger was not centered, verify should retry");
-		break;
-	case FP_VERIFY_RETRY_REMOVE_FINGER:
-		fp_dbg("scan failed, remove finger and retry");
-		break;
-	default:
-		fp_err("unrecognised return code %d", r);
-		r = -EINVAL;
-	}
-
-err_stop:
-	if (fp_async_identify_stop(dev, identify_stop_cb, &stopped) == 0)
-		while (!stopped)
-			if (fp_handle_events() < 0)
-				break;
-
-err:
-	g_free(idata);
-	return r;
 }
 
 struct sync_capture_data {
