@@ -173,8 +173,8 @@ static void enroll_stop_cb(struct fp_dev *dev, void *user_data)
  * use.
  * \return negative code on error, otherwise a code from #fp_enroll_result
  */
-API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
-	struct fp_print_data **print_data, struct fp_img **img)
+API_EXPORTED int fp_enroll_finger_img_timeout(struct fp_dev *dev,
+	struct fp_print_data **print_data, struct fp_img **img, struct timeval *enroll_timeout)
 {
 	struct fp_driver *drv = dev->drv;
 	int stage = dev->__enroll_stage;
@@ -210,15 +210,24 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 
 	/* FIXME this isn't very clean */
 	edata = dev->enroll_stage_cb_data;
+    		
+	time_t start_time;
+	start_time = time(NULL);
 
 	while (!edata->populated) {
+		if (enroll_timeout != NULL) {
+			if (time(NULL) > start_time + enroll_timeout->tv_sec) {
+				r = FP_ENROLL_TIMEOUT;
+				g_free(edata);
+				goto err;
+			}	
+		}
 		r = fp_handle_events();
 		if (r < 0) {
 			g_free(edata);
 			goto err;
-		}
+		}	
 	}
-
 	edata->populated = FALSE;
 
 	if (img)
@@ -255,6 +264,9 @@ API_EXPORTED int fp_enroll_finger_img(struct fp_dev *dev,
 		dev->__enroll_stage = -1;
 		final = TRUE;
 		break;
+	case FP_ENROLL_UNPLUGGED:
+		fp_dbg("physical unplug");
+		goto unplugged;
 	default:
 		fp_err("unrecognised return code %d", r);
 		dev->__enroll_stage = -1;
@@ -277,6 +289,9 @@ err:
 		while (!stopped)
 			if (fp_handle_events() < 0)
 				break;
+	return r;
+	
+unplugged:
 	return r;
 }
 
@@ -447,9 +462,9 @@ static void identify_stop_cb(struct fp_dev *dev, void *user_data)
  * use.
  * \return negative code on error, otherwise a code from #fp_verify_result
  */
-API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
+API_EXPORTED int fp_identify_finger_img_timeout(struct fp_dev *dev,
 	struct fp_print_data **print_gallery, size_t *match_offset,
-	struct fp_img **img)
+	struct fp_img **img, struct timeval *identify_timeout)
 {
 	gboolean stopped = FALSE;
 	struct sync_identify_data *idata
@@ -464,12 +479,21 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 		goto err;
 	}
 
+	time_t start_time;
+	start_time = time(NULL);
+
 	while (!idata->populated) {
+		if (identify_timeout != NULL) {
+			if (time(NULL) > start_time + identify_timeout->tv_sec) {
+				r = FP_VERIFY_TIMEOUT;
+				goto err_stop;
+			}
+		}
 		r = fp_handle_events();
 		if (r < 0)
 			goto err_stop;
 	}
-
+	
 	if (img)
 		*img = idata->img;
 	else
@@ -496,6 +520,9 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 	case FP_VERIFY_RETRY_REMOVE_FINGER:
 		fp_dbg("scan failed, remove finger and retry");
 		break;
+	case FP_VERIFY_UNPLUGGED:
+		fp_dbg("physical unplug");
+		goto unplugged;
 	default:
 		fp_err("unrecognised return code %d", r);
 		r = -EINVAL;
@@ -504,12 +531,17 @@ API_EXPORTED int fp_identify_finger_img(struct fp_dev *dev,
 err_stop:
 	if (fp_async_identify_stop(dev, identify_stop_cb, &stopped) == 0)
 		while (!stopped)
-			if (fp_handle_events() < 0)
+			//if (fp_handle_events() < 0)
 				break;
 
 err:
 	g_free(idata);
 	return r;
+
+unplugged:
+	g_free(idata);
+	return r;
+		
 }
 
 struct sync_capture_data {
